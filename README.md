@@ -29,28 +29,52 @@ family-platform/
 ## 本地运行（开发）
 ```bash
 pip install -r requirements.txt
-python main.py
-# 或
 uvicorn main:app --host 0.0.0.0 --port 8000
 # 浏览器打开 http://localhost:8000
 ```
+> 说明：本项目没有 `python main.py` 入口，请用 `uvicorn main:app` 启动（与 Docker 内一致）。
 默认管理员：用户名 `admin` / 密码 `admin123`（在 docker-compose 或环境变量中修改）。
 
 ## 在 QNAP 上部署
-1. QNAP 安装并打开 **Container Station**。
-2. 把整个 `family-platform` 文件夹上传到 NAS 的某个共享目录（例如 `/share/Container/family-platform`）。
-3. 在该目录创建 `docker-compose.yml`（已提供），按需修改：
-   - `ports`：对外端口，例如 `8080:8000`，访问地址 `http://<NAS的IP>:8080`。
-   - `environment.APP_SECRET`：改成一段随机长字符串（重要，关乎登录安全）。
-   - `environment.ADMIN_PASS`：改成强密码。
-4. Container Station 中「创建」→ 选择 docker-compose，或命令行：
-   ```bash
-   docker compose up -d
-   ```
-5. 浏览器访问 `http://<NAS的IP>:8080`，用管理员登录后在「用户管理」里创建家庭成员账号。
+> 代码已推到 GitHub：`https://github.com/gxchai-hr/family-platform`（私有仓库）。
+> 部署的本质是：在 NAS 上用 Docker 把这个项目跑起来，并把 `data/` 挂到持久化卷上。
+
+### 方式一：Container Station 图形界面（推荐新手）
+1. QNAP 应用中心安装并打开 **Container Station**。
+2. 把整个 `family-platform` 文件夹传到 NAS 共享目录，例如 `/share/Container/family-platform`
+   （可用 File Station 上传，或 SSH 后用 `git clone` 拉取：
+   `git clone https://github.com/gxchai-hr/family-platform.git /share/Container/family-platform`）。
+3. 进 **Container Station → 创建 → 浏览**，定位到该目录的 `docker-compose.yml`，点击创建。
+4. 创建前在「环境 / 高级设置」里修改：
+   - 端口映射：左（容器）`8000` → 右（NAS 对外）`8080`（可改，访问地址即 `http://<NAS的IP>:8080`）。
+   - `APP_SECRET`：改成一段随机长字符串（重要，关乎登录令牌安全）。
+   - `ADMIN_PASS`：改成强密码。
+5. 启动后浏览器访问 `http://<NAS的IP>:8080`，用管理员登录，在「用户管理」里创建家庭成员账号。
+
+### 方式二：SSH 命令行
+```bash
+# 1) 登录 NAS（终端/PowerShell）：ssh admin@<NAS的IP>
+# 2) 拉取代码
+git clone https://github.com/gxchai-hr/family-platform.git /share/Container/family-platform
+cd /share/Container/family-platform
+
+# 3) 改密钥与密码（编辑 docker-compose.yml 的 environment 两项）
+#    APP_SECRET / ADMIN_PASS
+
+# 4) 构建并后台启动
+docker compose up -d --build
+# 查看日志：docker compose logs -f
+# 停止：     docker compose down
+```
+访问 `http://<NAS的IP>:8080`。
+
+### 注意事项
+- 镜像基于 `python:3.12-slim`，首次 `up` 会在 NAS 上拉取并构建，取决于网速，请耐心等待。
+- `data/` 已挂载为卷（`./data:/app/data`），数据库与上传图片都持久化在这里；**迁移 / 重装时备份此目录即可**。
+- 若 NAS 已占用 8080，改 `docker-compose.yml` 左侧对外端口（如 `8090:8000`）。
 
 ## 安全建议（局域网外也要留意）
 - 务必改写 `APP_SECRET` 与默认管理员密码。
 - 同网段设备理论可嗅探，建议在内网加一层 HTTPS（反向代理 / 自签证书）。
-- 可在 NAS 防火墙限制来源网段，仅允许家庭子网访问。
-- `data/` 目录即全部数据，可定期备份该目录。
+- 可在 NAS 防火墙 / 路由器限制来源网段，仅允许家庭子网访问。
+- `data/` 目录即全部数据，可定期备份该目录（rsync / 外接硬盘均可）。
