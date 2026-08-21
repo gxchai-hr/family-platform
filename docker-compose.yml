@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  family-platform:
+    build: .
+    container_name: family-platform
+    ports:
+      - "8080:8000"          # 对外端口可改，例如你家访问 http://NAS_IP:8080
+    volumes:
+      - ./data:/app/data     # 持久化：SQLite 数据库 + 上传图片
+    environment:
+      - APP_SECRET=请改成一段随机长字符串
+      - ADMIN_USER=admin
+      - ADMIN_PASS=请改成强密码
+    restart: unless-stopped
+
